@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  dados_db_mongodb:
+      image: mongo
+      ports:
+        - 27017:27017
+      environment:
+        MONGO_INITDB_ROOT_USERNAME: root
+        MONGO_INITDB_ROOT_PASSWORD: example
+
+  dados_db_postgres:
+    build: .docker/postgres
+    container_name: dados_db_postgres_container
+    image: postgres
+    environment:
+      POSTGRES_USER: ${DATABASE_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-postgres}
+      POSTGRES_DB: ${DATABASE_NAME}
+      POSTGRES_DB_SCHEMA: ${DATABASE_NAME_SCHEMA}
+      PGDATA: /data/postgres
+    volumes:
+      - postgres:/data/postgres
+      - .docker/postgres/init.sql:/docker-entrypoint-initdb.d/0_init.sql
+      - .docker/postgres/create-schema.sh:/docker-entrypoint-initdb.d/1_create-schema.sh
+    ports:
+      - "5432:5432"
+    expose:
+      - "5432:5432"
+    networks:
+      - postgres
+    restart: unless-stopped
+
+  dados_db_pgadmin:
+    container_name: dados_db_pgadmin_container
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin4@pgadmin.org}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin:/var/lib/pgadmin
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    networks:
+      - postgres
+    restart: unless-stopped
+
+  dados_redis:
+    image: bitnami/redis:latest
+    ports:
+      - "${REDIS_PORT:-6379}:${REDIS_PORT:-6379}"
+    expose:
+      - ${REDIS_PORT:-6379}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-password}
+
+networks:
+  postgres:
+    driver: bridge
+
+volumes:
+  postgres:
+  pgadmin:
